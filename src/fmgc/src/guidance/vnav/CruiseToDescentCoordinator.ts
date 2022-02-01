@@ -20,8 +20,11 @@ export class CruiseToDescentCoordinator {
         // - Compute cruise profile to T/D -> guess new guess for fuel at start T/D, use fuel burn to get new estimate for fuel at destination
         // - Repeat
         const topOfClimbIndex = profile.checkpoints.findIndex((checkpoint) => checkpoint.reason === VerticalCheckpointReason.TopOfClimb);
+        const presentPositionIndex = profile.checkpoints.findIndex((checkpoint) => checkpoint.reason === VerticalCheckpointReason.PresentPosition);
 
-        if (topOfClimbIndex < 0) {
+        const startOfCruiseIndex = topOfClimbIndex >= 0 ? topOfClimbIndex : presentPositionIndex;
+
+        if (startOfCruiseIndex < 0) {
             return;
         }
 
@@ -31,11 +34,16 @@ export class CruiseToDescentCoordinator {
 
         while (iterationCount++ < 4 && (Math.abs(todFuelError) > 100 || Math.abs(todTimeError) > 1)) {
             // Reset checkpoints
-            profile.checkpoints.splice(topOfClimbIndex + 1, profile.checkpoints.length - topOfClimbIndex - 1);
+            profile.checkpoints.splice(startOfCruiseIndex + 1, profile.checkpoints.length - startOfCruiseIndex - 1);
             this.decelPathBuilder.computeDecelPath(profile, this.lastEstimatedFuelAtDestination, this.lastEstimatedTimeAtDestination);
 
             // Geometric and idle
             const todCheckpoint = this.descentPathBuilder.computeDescentPath(profile, speedProfile, this.cruisePathBuilder.getFinalCruiseAltitude());
+            if (todCheckpoint.distanceFromStart < profile.checkpoints[startOfCruiseIndex].distanceFromStart) {
+                // T/D Reached
+                return;
+            }
+
             const cruisePath = this.cruisePathBuilder.computeCruisePath(profile, stepClimbStrategy, stepDescentStrategy);
 
             if (!cruisePath || !todCheckpoint) {

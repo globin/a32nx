@@ -31,12 +31,11 @@ export class CruisePathBuilder {
         const topOfDescent = profile.findVerticalCheckpoint(VerticalCheckpointReason.TopOfDescent);
 
         if (!startOfCruise?.distanceFromStart || !topOfDescent?.distanceFromStart) {
-            return null;
+            throw new Error('[FMS/VNAV] Start of cruise or T/D could not be located');
         }
 
         if (startOfCruise.distanceFromStart > topOfDescent.distanceFromStart) {
-            console.warn('[FMS/VNAV] Cruise segment too short');
-            return null;
+            throw new Error('[FMS/VNAV] Cruise segment too short');
         }
 
         const { managedCruiseSpeed, managedCruiseSpeedMach } = this.computationParametersObserver.get();

@@ -21,7 +21,7 @@ import { Constants } from '@shared/Constants';
 import { ClimbThrustClimbStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
-import { NavGeometryProfile } from './profile/NavGeometryProfile';
+import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 
 export class VnavDriver implements GuidanceComponent {
@@ -292,5 +292,21 @@ export class VnavDriver implements GuidanceComponent {
         const { fcuLateralMode, fcuArmedLateralMode } = this.computationParametersObserver.get();
 
         return fcuLateralMode === LateralMode.NAV || (fcuArmedLateralMode & ArmedLateralMode.NAV) === 1;
+    }
+
+    getVerticalDeviation(): Feet | null {
+        const ppos = this.currentNavGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.PresentPosition);
+        if (!ppos) {
+            return null;
+        }
+
+        // TODO: We should not have to remove PPOS and put it back in to get a good interpolation.
+        this.currentNavGeometryProfile.checkpoints = this.currentNavGeometryProfile.checkpoints.filter(({ reason }) => reason !== VerticalCheckpointReason.PresentPosition);
+
+        const altitudeWeShouldBeAt = this.currentNavGeometryProfile.interpolateAltitudeAtDistance(ppos.distanceFromStart);
+        const vDev = ppos.altitude - altitudeWeShouldBeAt;
+
+        this.currentNavGeometryProfile.addCheckpointAtDistanceFromStart(ppos.distanceFromStart, ppos);
+        return vDev;
     }
 }

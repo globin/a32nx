@@ -32,9 +32,8 @@ export class DescentPathBuilder {
         this.geometricPathBuilder.buildGeometricPath(profile, speedProfile, cruiseAltitude);
 
         const geometricPathStart = profile.findVerticalCheckpoint(VerticalCheckpointReason.GeometricPathStart);
-        const tocCheckpoint = profile.findVerticalCheckpoint(VerticalCheckpointReason.TopOfClimb);
 
-        if (tocCheckpoint && geometricPathStart) {
+        if (geometricPathStart) {
             // The last checkpoint here is the start of the Geometric path
             this.buildIdlePath(profile, speedProfile, cruiseAltitude);
             const tod = profile.lastCheckpoint;
@@ -45,7 +44,7 @@ export class DescentPathBuilder {
             return tod;
         }
 
-        console.error('[FMS/VNAV](computeDescentPath) Cannot compute descent path without ToC');
+        console.error('[FMS/VNAV](computeDescentPath) Cannot compute idle path without geometric path');
 
         return undefined;
     }
@@ -75,7 +74,9 @@ export class DescentPathBuilder {
             });
         }
 
-        profile.lastCheckpoint.reason = VerticalCheckpointReason.TopOfDescent;
+        if (profile.lastCheckpoint.reason === VerticalCheckpointReason.IdlePathAtmosphericConditions) {
+            profile.lastCheckpoint.reason = VerticalCheckpointReason.TopOfDescent;
+        }
     }
 
     private computeIdlePathSegmentPrediction(startingAltitude: Feet, targetAltitude: Feet, climbSpeed: Knots, remainingFuelOnBoard: number): StepResults {
