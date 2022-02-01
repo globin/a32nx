@@ -153,12 +153,8 @@ export class VnavDriver implements GuidanceComponent {
                 this.climbPathBuilder.computeClimbPath(this.currentNavGeometryProfile, climbStrategy, this.currentMcduSpeedProfile, cruiseAltitude);
             }
 
-            if (flightPhase < FlightPhase.FLIGHT_PHASE_DESCENT) {
-                if (this.decelPathBuilder.canCompute(geometry, this.currentNavGeometryProfile.waypointCount)) {
-                    this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(this.currentNavGeometryProfile, this.currentMcduSpeedProfile, climbStrategy, descentStrategy);
-                }
-            } else {
-                this.cruiseToDescentCoordinator.buildDescentPathOnly(this.currentNavGeometryProfile, this.currentMcduSpeedProfile);
+            if (this.decelPathBuilder.canCompute(geometry, this.currentNavGeometryProfile.waypointCount)) {
+                this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(this.currentNavGeometryProfile, this.currentMcduSpeedProfile, climbStrategy, descentStrategy);
             }
 
             this.currentNavGeometryProfile.finalizeProfile();
@@ -226,8 +222,6 @@ export class VnavDriver implements GuidanceComponent {
         if (this.isInManagedNav() && this.currentNdGeometryProfile instanceof NavGeometryProfile && this.decelPathBuilder.canCompute(geometry, this.currentNavGeometryProfile.waypointCount)) {
             if (flightPhase < FlightPhase.FLIGHT_PHASE_DESCENT) {
                 this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(this.currentNdGeometryProfile, speedProfile, climbStrategy, stepDescentStrategy);
-            } else {
-                this.cruiseToDescentCoordinator.buildDescentPathOnly(this.currentNdGeometryProfile, this.currentMcduSpeedProfile);
             }
         }
 
