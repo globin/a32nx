@@ -247,6 +247,7 @@ export class VnavDriver implements GuidanceComponent {
 
         const verticalModesToApplyAltitudeConstraintsFor = [
             VerticalMode.CLB,
+            VerticalMode.ALT,
             VerticalMode.ALT_CPT,
             VerticalMode.ALT_CST_CPT,
             VerticalMode.ALT_CST,
