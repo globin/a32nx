@@ -20,4 +20,9 @@ export class SelectedGeometryProfile extends BaseGeometryProfile {
     getCheckpointsToShowOnTrackLine(): VerticalCheckpoint[] {
         return this.checkpoints.filter((checkpoint) => this.checkpointsToShowAlongFlightPlan.has(checkpoint.reason));
     }
+
+    override resetAltitudeConstraints(): void {
+        this.maxAltitudeConstraints = [];
+        this.descentAltitudeConstraints = [];
+    }
 }

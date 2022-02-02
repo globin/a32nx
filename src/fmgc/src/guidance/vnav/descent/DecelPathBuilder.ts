@@ -70,11 +70,11 @@ export class DecelPathBuilder {
 
         let timeElapsed = estimatedSecondsFromPresentAtDestination - vappSegment.timeElapsed;
         let fuelWeight = estimatedFuelOnBoardAtDestination + vappSegment.fuelBurned;
-        let distance = vappSegment.distanceTraveled;
+        let distanceFromEnd = vappSegment.distanceTraveled;
 
         profile.checkpoints.push({
             reason: VerticalCheckpointReason.Landing,
-            distanceFromStart: profile.totalFlightPlanDistance - distance,
+            distanceFromStart: profile.getDistanceFromStart(distanceFromEnd),
             speed: 135, // FIXME
             altitude: vappSegment.finalAltitude,
             remainingFuelOnBoard: fuelWeight,
@@ -93,11 +93,11 @@ export class DecelPathBuilder {
             TEMP_TROPO,
         );
         fuelWeight += cFullTo3Segment.fuelBurned;
-        distance += cFullTo3Segment.distanceTraveled;
+        distanceFromEnd += cFullTo3Segment.distanceTraveled;
         timeElapsed -= cFullTo3Segment.timeElapsed;
         profile.checkpoints.push({
             reason: VerticalCheckpointReason.FlapsFull,
-            distanceFromStart: profile.totalFlightPlanDistance - distance,
+            distanceFromStart: profile.getDistanceFromStart(distanceFromEnd),
             speed: F,
             altitude: cFullTo3Segment.initialAltitude,
             remainingFuelOnBoard: fuelWeight,
@@ -116,11 +116,11 @@ export class DecelPathBuilder {
             TEMP_TROPO,
         );
         fuelWeight += c3to2Segment.fuelBurned;
-        distance += c3to2Segment.distanceTraveled;
+        distanceFromEnd += c3to2Segment.distanceTraveled;
         timeElapsed -= c3to2Segment.timeElapsed;
         profile.checkpoints.push({
             reason: VerticalCheckpointReason.Flaps3,
-            distanceFromStart: profile.totalFlightPlanDistance - distance,
+            distanceFromStart: profile.getDistanceFromStart(distanceFromEnd),
             speed: F + (S - F) / 2,
             altitude: c3to2Segment.initialAltitude,
             remainingFuelOnBoard: fuelWeight,
@@ -139,11 +139,11 @@ export class DecelPathBuilder {
             TEMP_TROPO,
         );
         fuelWeight += c2to1Segment.fuelBurned;
-        distance += c2to1Segment.distanceTraveled;
+        distanceFromEnd += c2to1Segment.distanceTraveled;
         timeElapsed -= c2to1Segment.timeElapsed;
         profile.checkpoints.push({
             reason: VerticalCheckpointReason.Flaps2,
-            distanceFromStart: profile.totalFlightPlanDistance - distance,
+            distanceFromStart: profile.getDistanceFromStart(distanceFromEnd),
             speed: S,
             altitude: c2to1Segment.initialAltitude,
             remainingFuelOnBoard: fuelWeight,
@@ -162,11 +162,11 @@ export class DecelPathBuilder {
             TEMP_TROPO,
         );
         fuelWeight += c1toCleanSegment.fuelBurned;
-        distance += c1toCleanSegment.distanceTraveled;
+        distanceFromEnd += c1toCleanSegment.distanceTraveled;
         timeElapsed -= c1toCleanSegment.timeElapsed;
         profile.checkpoints.push({
             reason: VerticalCheckpointReason.Flaps1,
-            distanceFromStart: profile.totalFlightPlanDistance - distance,
+            distanceFromStart: profile.getDistanceFromStart(distanceFromEnd),
             speed: O,
             altitude: c1toCleanSegment.initialAltitude,
             remainingFuelOnBoard: fuelWeight,
@@ -210,11 +210,11 @@ export class DecelPathBuilder {
         }
 
         fuelWeight += cleanToDesSpeedSegment.fuelBurned;
-        distance += cleanToDesSpeedSegment.distanceTraveled;
+        distanceFromEnd += cleanToDesSpeedSegment.distanceTraveled;
         timeElapsed -= cleanToDesSpeedSegment.timeElapsed;
         profile.checkpoints.push({
             reason: VerticalCheckpointReason.Decel,
-            distanceFromStart: profile.totalFlightPlanDistance - distance,
+            distanceFromStart: profile.getDistanceFromStart(distanceFromEnd),
             speed: DES,
             altitude: cleanToDesSpeedSegment.initialAltitude,
             remainingFuelOnBoard: fuelWeight,

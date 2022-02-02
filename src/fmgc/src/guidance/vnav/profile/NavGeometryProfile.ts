@@ -1,6 +1,5 @@
-import { SegmentType } from '@fmgc/flightplanning/FlightPlanSegment';
-import { FlightPlanManager } from '@fmgc/wtsdk';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
+import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { Geometry } from '../../Geometry';
 import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
 
@@ -81,30 +80,38 @@ export interface DescentAltitudeConstraint {
 }
 
 export class NavGeometryProfile extends BaseGeometryProfile {
-    public totalFlightPlanDistance: NauticalMiles = 0;
-
-    public distanceToPresentPosition: NauticalMiles = 0;
-
-    public override maxAltitudeConstraints: MaxAltitudeConstraint[] = [];
-
-    public override descentAltitudeConstraints: DescentAltitudeConstraint[] = [];
-
-    public override maxClimbSpeedConstraints: MaxSpeedConstraint[] = [];
-
-    public override descentSpeedConstraints: MaxSpeedConstraint[] = [];
-
-    public waypointCount: number = 0;
-
     public waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
     constructor(
         public geometry: Geometry,
-        flightPlanManager: FlightPlanManager,
-        activeLegIndex: number,
+        private constraintReader: ConstraintReader,
+        public waypointCount: number,
     ) {
         super();
+    }
 
-        this.extractGeometryInformation(flightPlanManager, activeLegIndex);
+    override get maxAltitudeConstraints(): MaxAltitudeConstraint[] {
+        return this.constraintReader.climbAlitudeConstraints;
+    }
+
+    override get descentAltitudeConstraints(): DescentAltitudeConstraint[] {
+        return this.constraintReader.descentAlitudeConstraints;
+    }
+
+    override get maxClimbSpeedConstraints(): MaxSpeedConstraint[] {
+        return this.constraintReader.climbSpeedConstraints;
+    }
+
+    override get descentSpeedConstraints(): MaxSpeedConstraint[] {
+        return this.constraintReader.descentSpeedConstraints;
+    }
+
+    override get distanceToPresentPosition(): number {
+        return this.constraintReader.distanceToPresentPosition;
+    }
+
+    get totalFlightPlanDistance(): number {
+        return this.constraintReader.totalFlightPlanDistance;
     }
 
     get lastCheckpoint(): VerticalCheckpoint | null {
@@ -117,68 +124,6 @@ export class NavGeometryProfile extends BaseGeometryProfile {
 
     addCheckpointFromLast(checkpointBuilder: (lastCheckpoint: VerticalCheckpoint) => Partial<VerticalCheckpoint>) {
         this.checkpoints.push({ ...this.lastCheckpoint, ...checkpointBuilder(this.lastCheckpoint) });
-    }
-
-    extractGeometryInformation(flightPlanManager: FlightPlanManager, activeLegIndex: number) {
-        const { legs, transitions } = this.geometry;
-
-        this.distanceToPresentPosition = -flightPlanManager.getDistanceToActiveWaypoint();
-        this.waypointCount = flightPlanManager.getWaypointsCount();
-
-        for (let i = 0; i < this.waypointCount; i++) {
-            const leg = legs.get(i);
-
-            if (!leg) {
-                continue;
-            }
-
-            const inboundTransition = transitions.get(i - 1);
-
-            const legDistance = Geometry.completeLegPathLengths(
-                leg, (inboundTransition?.isNull || !inboundTransition?.isComputed) ? null : inboundTransition, transitions.get(i),
-            ).reduce((sum, el) => sum + el, 0);
-            this.totalFlightPlanDistance += legDistance;
-
-            if (i <= activeLegIndex) {
-                this.distanceToPresentPosition += legDistance;
-            }
-
-            if (leg.segment === SegmentType.Origin || leg.segment === SegmentType.Departure) {
-                if (leg.altitudeConstraint && leg.altitudeConstraint.type !== AltitudeConstraintType.atOrAbove) {
-                    if (this.maxAltitudeConstraints.length < 1 || leg.altitudeConstraint.altitude1 >= this.maxAltitudeConstraints[this.maxAltitudeConstraints.length - 1].maxAltitude) {
-                        this.maxAltitudeConstraints.push({
-                            distanceFromStart: this.totalFlightPlanDistance,
-                            maxAltitude: leg.altitudeConstraint.altitude1,
-                        });
-                    }
-                }
-
-                // atOrAbove speed constraints don't exist
-                if (leg.speedConstraint?.speed > 100 && leg.speedConstraint.type !== SpeedConstraintType.atOrAbove) {
-                    if (this.maxClimbSpeedConstraints.length < 1 || leg.speedConstraint.speed >= this.maxClimbSpeedConstraints[this.maxClimbSpeedConstraints.length - 1].maxSpeed) {
-                        this.maxClimbSpeedConstraints.push({
-                            distanceFromStart: this.totalFlightPlanDistance,
-                            maxSpeed: leg.speedConstraint.speed,
-                        });
-                    }
-                }
-            } else if (leg.segment === SegmentType.Arrival || leg.segment === SegmentType.Approach || leg.segment === SegmentType.Enroute) {
-                if (leg.altitudeConstraint) {
-                    this.descentAltitudeConstraints.push({
-                        distanceFromStart: this.totalFlightPlanDistance,
-                        constraint: leg.altitudeConstraint,
-                    });
-                }
-
-                // atOrAbove speed constraints don't exist
-                if (leg.speedConstraint?.speed > 100 && leg.speedConstraint.type !== SpeedConstraintType.atOrAbove) {
-                    this.descentSpeedConstraints.push({
-                        distanceFromStart: this.totalFlightPlanDistance,
-                        maxSpeed: leg.speedConstraint.speed,
-                    });
-                }
-            }
-        }
     }
 
     /**
@@ -310,5 +255,13 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         super.finalizeProfile();
 
         this.waypointPredictions = this.computePredictionsAtWaypoints();
+    }
+
+    getDistanceFromStart(distanceFromEnd: NauticalMiles): NauticalMiles {
+        return this.constraintReader.totalFlightPlanDistance - distanceFromEnd;
+    }
+
+    override resetAltitudeConstraints() {
+        this.constraintReader.resetAltitudeConstraints();
     }
 }

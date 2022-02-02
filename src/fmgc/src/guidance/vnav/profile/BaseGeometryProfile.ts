@@ -13,15 +13,15 @@ export abstract class BaseGeometryProfile {
 
     public checkpoints: VerticalCheckpoint[] = [];
 
-    abstract maxAltitudeConstraints: MaxAltitudeConstraint[];
+    abstract get maxAltitudeConstraints(): MaxAltitudeConstraint[];
 
-    abstract descentAltitudeConstraints: DescentAltitudeConstraint[];
+    abstract get descentAltitudeConstraints(): DescentAltitudeConstraint[];
 
-    abstract maxClimbSpeedConstraints: MaxSpeedConstraint[];
+    abstract get maxClimbSpeedConstraints(): MaxSpeedConstraint[];
 
-    abstract descentSpeedConstraints: MaxSpeedConstraint[];
+    abstract get descentSpeedConstraints(): MaxSpeedConstraint[];
 
-    abstract distanceToPresentPosition: NauticalMiles;
+    abstract get distanceToPresentPosition(): NauticalMiles;
 
     get lastCheckpoint(): VerticalCheckpoint | null {
         if (this.checkpoints.length < 1) {
@@ -364,6 +364,8 @@ export abstract class BaseGeometryProfile {
             speed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
         });
     }
+
+    abstract resetAltitudeConstraints(): void;
 }
 
 type HasAtLeast<T, U extends keyof T> = Pick<T, U> & Partial<Omit<T, U>>

@@ -19,6 +19,7 @@ import { TakeoffPathBuilder } from '@fmgc/guidance/vnav/takeoff/TakeoffPathBuild
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { Constants } from '@shared/Constants';
 import { ClimbThrustClimbStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
+import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
@@ -55,6 +56,8 @@ export class VnavDriver implements GuidanceComponent {
 
     stepCoordinator: StepCoordinator;
 
+    private constraintReader: ConstraintReader;
+
     constructor(
         private readonly guidanceController: GuidanceController,
         private readonly computationParametersObserver: VerticalProfileComputationParametersObserver,
@@ -71,6 +74,8 @@ export class VnavDriver implements GuidanceComponent {
         this.descentPathBuilder = new DescentPathBuilder(computationParametersObserver, this.atmosphericConditions);
         this.decelPathBuilder = new DecelPathBuilder();
         this.cruiseToDescentCoordinator = new CruiseToDescentCoordinator(this.cruisePathBuilder, this.descentPathBuilder, this.decelPathBuilder);
+
+        this.constraintReader = new ConstraintReader(this.flightPlanManager);
     }
 
     init(): void {
@@ -78,7 +83,8 @@ export class VnavDriver implements GuidanceComponent {
     }
 
     acceptMultipleLegGeometry(geometry: Geometry) {
-        // Just put this here to avoid two billion updates per second in update()
+        this.constraintReader.extract(geometry, this.guidanceController.activeLegIndex);
+
         this.cruisePathBuilder.update();
 
         this.computeVerticalProfileForMcdu(geometry);
@@ -100,6 +106,8 @@ export class VnavDriver implements GuidanceComponent {
             if (DEBUG) {
                 console.log('[FMS/VNAV] Computed new vertical profile because of new cruise altitude.');
             }
+
+            this.constraintReader.extract(this.guidanceController.activeGeometry, this.guidanceController.activeLegIndex);
 
             this.computeVerticalProfileForMcdu(this.guidanceController.activeGeometry);
             this.computeVerticalProfileForNd(this.guidanceController.activeGeometry);
@@ -127,7 +135,7 @@ export class VnavDriver implements GuidanceComponent {
 
     private computeVerticalProfileForMcdu(geometry: Geometry) {
         console.time('VNAV computation');
-        this.currentNavGeometryProfile = new NavGeometryProfile(geometry, this.flightPlanManager, this.guidanceController.activeLegIndex);
+        this.currentNavGeometryProfile = new NavGeometryProfile(geometry, this.constraintReader, this.flightPlanManager.getWaypointsCount());
 
         this.currentMcduSpeedProfile = new McduSpeedProfile(
             this.computationParametersObserver.get(),
@@ -179,7 +187,7 @@ export class VnavDriver implements GuidanceComponent {
         const { fcuAltitude, fcuVerticalMode, presentPosition, fuelOnBoard, fcuVerticalSpeed, flightPhase } = this.computationParametersObserver.get();
 
         this.currentNdGeometryProfile = this.isInManagedNav()
-            ? new NavGeometryProfile(geometry, this.flightPlanManager, this.guidanceController.activeLegIndex)
+            ? new NavGeometryProfile(geometry, this.constraintReader, this.flightPlanManager.getWaypointsCount())
             : new SelectedGeometryProfile();
 
         const isOnGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
@@ -190,8 +198,7 @@ export class VnavDriver implements GuidanceComponent {
         }
 
         if (!this.shouldObeyAltitudeConstraints()) {
-            this.currentNdGeometryProfile.maxAltitudeConstraints = [];
-            this.currentNdGeometryProfile.descentAltitudeConstraints = [];
+            this.currentNdGeometryProfile.resetAltitudeConstraints();
         }
 
         if (geometry.legs.size <= 0 || !this.computationParametersObserver.canComputeProfile()) {
