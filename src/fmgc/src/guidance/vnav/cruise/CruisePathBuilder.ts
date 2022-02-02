@@ -5,7 +5,7 @@ import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { ClimbStrategy, DescentStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { Predictions, StepResults } from '../Predictions';
-import { VerticalCheckpointReason } from '../profile/NavGeometryProfile';
+import { VerticalCheckpoint, VerticalCheckpointReason } from '../profile/NavGeometryProfile';
 import { AtmosphericConditions } from '../AtmosphericConditions';
 
 export interface CruisePathBuilderResults {
@@ -40,15 +40,15 @@ export class CruisePathBuilder {
 
         const { managedCruiseSpeed, managedCruiseSpeedMach } = this.computationParametersObserver.get();
 
-        // Steps
-        let { distanceFromStart, altitude, remainingFuelOnBoard, secondsFromPresent } = startOfCruise;
+        const checkpointsToAdd: VerticalCheckpoint[] = [startOfCruise];
 
-        const steps = this.stepCoordinator.steps;
-        for (const step of steps) {
+        for (const step of this.stepCoordinator.steps) {
             // If the step is too close to T/D
             if (step.isIgnored) {
                 continue;
             }
+
+            const { distanceFromStart, altitude, remainingFuelOnBoard } = checkpointsToAdd[checkpointsToAdd.length - 1];
 
             // TODO: What happens if the step is at cruise altitude?
             const isClimbVsDescent = step.toAltitude > altitude;
@@ -66,44 +66,27 @@ export class CruisePathBuilder {
                 continue;
             }
 
-            const { fuelBurned, timeElapsed, distanceTraveled } = this.computeCruiseSegment(stepDistanceFromStart - distanceFromStart, remainingFuelOnBoard);
+            const segmentToStep = this.computeCruiseSegment(stepDistanceFromStart - distanceFromStart, remainingFuelOnBoard);
+            this.addNewCheckpointFromResult(checkpointsToAdd, segmentToStep, isClimbVsDescent ? VerticalCheckpointReason.StepClimb : VerticalCheckpointReason.StepDescent);
 
-            distanceFromStart += distanceTraveled;
-            remainingFuelOnBoard -= fuelBurned;
-            secondsFromPresent += timeElapsed * 60;
-
-            profile.addCheckpointAtDistanceFromStart(stepDistanceFromStart, {
-                reason: isClimbVsDescent ? VerticalCheckpointReason.StepClimb : VerticalCheckpointReason.StepDescent,
-                altitude,
-                secondsFromPresent,
-                remainingFuelOnBoard,
-                speed: managedCruiseSpeed,
-            });
-
-            const { fuelBurned: fuelBurnedStep, timeElapsed: timeElapsedStep, distanceTraveled: distanceTraveledStep } = isClimbVsDescent
+            const stepResults = isClimbVsDescent
                 ? stepClimbStrategy.predictToAltitude(altitude, step.toAltitude, managedCruiseSpeed, managedCruiseSpeedMach, remainingFuelOnBoard)
                 : stepDescentStrategy.predictToAltitude(altitude, step.toAltitude, managedCruiseSpeed, managedCruiseSpeed, remainingFuelOnBoard);
 
-            distanceFromStart += distanceTraveledStep;
-            remainingFuelOnBoard -= fuelBurnedStep;
-            secondsFromPresent += timeElapsedStep * 60;
-            altitude = step.toAltitude;
-
-            profile.addCheckpointAtDistanceFromStart(distanceFromStart + distanceTraveledStep, {
-                reason: isClimbVsDescent ? VerticalCheckpointReason.TopOfStepClimb : VerticalCheckpointReason.BottomOfStepDescent,
-                secondsFromPresent,
-                remainingFuelOnBoard,
-                altitude,
-                speed: managedCruiseSpeed,
-            });
+            this.addNewCheckpointFromResult(checkpointsToAdd, stepResults, isClimbVsDescent ? VerticalCheckpointReason.TopOfStepClimb : VerticalCheckpointReason.BottomOfStepDescent);
         }
 
-        const { fuelBurned, timeElapsed, distanceTraveled } = this.computeCruiseSegment(topOfDescent.distanceFromStart - distanceFromStart, startOfCruise.remainingFuelOnBoard);
-        distanceFromStart += distanceTraveled;
-        remainingFuelOnBoard -= fuelBurned;
-        secondsFromPresent += timeElapsed * 60;
+        const { fuelBurned, timeElapsed } = this.computeCruiseSegment(
+            topOfDescent.distanceFromStart - checkpointsToAdd[checkpointsToAdd.length - 1].distanceFromStart,
+            startOfCruise.remainingFuelOnBoard,
+        );
 
-        return { remainingFuelOnBoardAtTopOfDescent: remainingFuelOnBoard, secondsFromPresentAtTopOfDescent: secondsFromPresent };
+        profile.addCheckpointAtDistanceFromStart(startOfCruise.distanceFromStart, ...checkpointsToAdd.slice(1));
+
+        return {
+            remainingFuelOnBoardAtTopOfDescent: checkpointsToAdd[checkpointsToAdd.length - 1].remainingFuelOnBoard - fuelBurned,
+            secondsFromPresentAtTopOfDescent: checkpointsToAdd[checkpointsToAdd.length - 1].secondsFromPresent + timeElapsed * 60,
+        };
     }
 
     private computeCruiseSegment(distance: NauticalMiles, remainingFuelOnBoard: number): StepResults {
@@ -129,5 +112,18 @@ export class CruisePathBuilder {
         }
 
         return this.stepCoordinator.steps[this.stepCoordinator.steps.length - 1].toAltitude;
+    }
+
+    private addNewCheckpointFromResult(existingCheckpoints: VerticalCheckpoint[], result: StepResults, reason: VerticalCheckpointReason) {
+        const { distanceFromStart, secondsFromPresent, remainingFuelOnBoard } = existingCheckpoints[existingCheckpoints.length - 1];
+
+        existingCheckpoints.push({
+            reason,
+            distanceFromStart: distanceFromStart + result.distanceTraveled,
+            altitude: result.finalAltitude,
+            secondsFromPresent: secondsFromPresent + (result.timeElapsed * 60),
+            speed: result.speed,
+            remainingFuelOnBoard: remainingFuelOnBoard - result.fuelBurned,
+        });
     }
 }

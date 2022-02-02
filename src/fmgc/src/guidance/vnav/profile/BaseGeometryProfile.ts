@@ -262,22 +262,22 @@ export abstract class BaseGeometryProfile {
         });
     }
 
-    addCheckpointAtDistanceFromStart(distanceFromStart: NauticalMiles, checkpoint: Omit<VerticalCheckpoint, 'distanceFromStart'>) {
+    addCheckpointAtDistanceFromStart(distanceFromStart: NauticalMiles, ...checkpoints: VerticalCheckpoint[]) {
         if (distanceFromStart <= this.checkpoints[0].distanceFromStart) {
-            this.checkpoints.unshift({ distanceFromStart, ...checkpoint });
+            this.checkpoints.unshift(...checkpoints);
 
             return;
         }
 
         for (let i = 0; i < this.checkpoints.length - 1; i++) {
             if (distanceFromStart > this.checkpoints[i].distanceFromStart && distanceFromStart <= this.checkpoints[i + 1].distanceFromStart) {
-                this.checkpoints.splice(i + 1, 0, { distanceFromStart, ...checkpoint });
+                this.checkpoints.splice(i + 1, 0, ...checkpoints);
 
                 return;
             }
         }
 
-        this.checkpoints.push({ distanceFromStart, ...checkpoint });
+        this.checkpoints.push(...checkpoints);
     }
 
     sortCheckpoints() {
