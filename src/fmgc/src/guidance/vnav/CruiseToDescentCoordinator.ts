@@ -23,6 +23,7 @@ export class CruiseToDescentCoordinator {
         const presentPositionIndex = profile.checkpoints.findIndex((checkpoint) => checkpoint.reason === VerticalCheckpointReason.PresentPosition);
 
         const startOfCruiseIndex = topOfClimbIndex >= 0 ? topOfClimbIndex : presentPositionIndex;
+        const startOfCruiseCheckpoint = profile.checkpoints[startOfCruiseIndex];
 
         if (startOfCruiseIndex < 0) {
             return;
@@ -39,7 +40,7 @@ export class CruiseToDescentCoordinator {
 
             // Geometric and idle
             const todCheckpoint = this.descentPathBuilder.computeDescentPath(profile, speedProfile, this.cruisePathBuilder.getFinalCruiseAltitude());
-            if (todCheckpoint.distanceFromStart < profile.checkpoints[startOfCruiseIndex].distanceFromStart) {
+            if (todCheckpoint.distanceFromStart < startOfCruiseCheckpoint.distanceFromStart) {
                 // T/D Reached
                 return;
             }

@@ -76,6 +76,8 @@ export class DescentPathBuilder {
 
         if (profile.lastCheckpoint.reason === VerticalCheckpointReason.IdlePathAtmosphericConditions) {
             profile.lastCheckpoint.reason = VerticalCheckpointReason.TopOfDescent;
+        } else {
+            profile.addCheckpointFromLast((lastCheckpoint) => ({ ...lastCheckpoint, reason: VerticalCheckpointReason.TopOfDescent }));
         }
     }
 
