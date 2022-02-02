@@ -134,7 +134,6 @@ export class VnavDriver implements GuidanceComponent {
     }
 
     private computeVerticalProfileForMcdu(geometry: Geometry) {
-        console.time('VNAV computation');
         this.currentNavGeometryProfile = new NavGeometryProfile(geometry, this.constraintReader, this.flightPlanManager.getWaypointsCount());
 
         this.currentMcduSpeedProfile = new McduSpeedProfile(
@@ -144,43 +143,42 @@ export class VnavDriver implements GuidanceComponent {
             this.currentNavGeometryProfile.descentSpeedConstraints,
         );
 
+        if (geometry.legs.size <= 0 || !this.computationParametersObserver.canComputeProfile()) {
+            return;
+        }
+
+        console.time('VNAV computation');
+
         const climbStrategy = new ClimbThrustClimbStrategy(this.computationParametersObserver, this.atmosphericConditions);
         const descentStrategy = new VerticalSpeedStrategy(this.computationParametersObserver, this.atmosphericConditions, -1000);
 
         const { cruiseAltitude, fuelOnBoard, presentPosition, flightPhase } = this.computationParametersObserver.get();
+        const isOnGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
-        if (geometry.legs.size > 0 && this.computationParametersObserver.canComputeProfile()) {
-            const isOnGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
-            if (isOnGround) {
-                this.takeoffPathBuilder.buildTakeoffPath(this.currentNavGeometryProfile);
-            } else {
-                this.currentNavGeometryProfile.addPresentPositionCheckpoint(presentPosition, fuelOnBoard * Constants.TONS_TO_POUNDS);
-            }
-
-            if (flightPhase < FlightPhase.FLIGHT_PHASE_CRUISE) {
-                this.climbPathBuilder.computeClimbPath(this.currentNavGeometryProfile, climbStrategy, this.currentMcduSpeedProfile, cruiseAltitude);
-            }
-
-            if (this.decelPathBuilder.canCompute(geometry, this.currentNavGeometryProfile.waypointCount)) {
-                this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(this.currentNavGeometryProfile, this.currentMcduSpeedProfile, climbStrategy, descentStrategy);
-            }
-
-            this.currentNavGeometryProfile.finalizeProfile();
-
-            if (VnavConfig.DEBUG_PROFILE) {
-                console.log('this.currentNavGeometryProfile:', this.currentNavGeometryProfile);
-            }
-
-            this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
-        } else if (DEBUG) {
-            console.warn('[FMS/VNAV] Did not compute vertical profile. Reason: no legs in flight plan.');
+        if (isOnGround) {
+            this.takeoffPathBuilder.buildTakeoffPath(this.currentNavGeometryProfile);
+        } else {
+            this.currentNavGeometryProfile.addPresentPositionCheckpoint(presentPosition, fuelOnBoard * Constants.TONS_TO_POUNDS);
         }
 
-        if (VnavConfig.DEBUG_PROFILE) {
-            this.currentMcduSpeedProfile.showDebugStats();
+        if (flightPhase < FlightPhase.FLIGHT_PHASE_CRUISE) {
+            this.climbPathBuilder.computeClimbPath(this.currentNavGeometryProfile, climbStrategy, this.currentMcduSpeedProfile, cruiseAltitude);
         }
+
+        if (this.decelPathBuilder.canCompute(geometry, this.currentNavGeometryProfile.waypointCount)) {
+            this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(this.currentNavGeometryProfile, this.currentMcduSpeedProfile, climbStrategy, descentStrategy);
+        }
+
+        this.currentNavGeometryProfile.finalizeProfile();
+
+        this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
 
         console.timeEnd('VNAV computation');
+
+        if (VnavConfig.DEBUG_PROFILE) {
+            console.log('this.currentNavGeometryProfile:', this.currentNavGeometryProfile);
+            this.currentMcduSpeedProfile.showDebugStats();
+        }
     }
 
     private computeVerticalProfileForNd(geometry: Geometry) {
