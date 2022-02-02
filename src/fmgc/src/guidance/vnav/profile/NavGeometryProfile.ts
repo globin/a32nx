@@ -95,7 +95,7 @@ export class NavGeometryProfile extends BaseGeometryProfile {
     }
 
     override get descentAltitudeConstraints(): DescentAltitudeConstraint[] {
-        return this.constraintReader.descentAlitudeConstraints;
+        return this.constraintReader.descentAltitudeConstraints;
     }
 
     override get maxClimbSpeedConstraints(): MaxSpeedConstraint[] {

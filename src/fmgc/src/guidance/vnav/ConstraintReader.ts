@@ -12,7 +12,7 @@ type UncategorizedSpeedConstraint = MaxSpeedConstraint;
 export class ConstraintReader {
     public climbAlitudeConstraints: MaxAltitudeConstraint[] = [];
 
-    public descentAlitudeConstraints: DescentAltitudeConstraint[] = [];
+    public descentAltitudeConstraints: DescentAltitudeConstraint[] = [];
 
     public climbSpeedConstraints: MaxSpeedConstraint[] = [];
 
@@ -70,7 +70,7 @@ export class ConstraintReader {
                 }
             } else if (leg.segment === SegmentType.Arrival || leg.segment === SegmentType.Approach) {
                 if (this.hasValidDescentAltitudeConstraint(leg)) {
-                    this.descentAlitudeConstraints.push({
+                    this.descentAltitudeConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
                         constraint: leg.altitudeConstraint,
                     });
@@ -102,7 +102,7 @@ export class ConstraintReader {
                     maxAltitude: uncategorizedAltitudeConstraint.constraint.altitude1,
                 });
             } else {
-                this.descentAlitudeConstraints.push({
+                this.descentAltitudeConstraints.push({
                     distanceFromStart: uncategorizedAltitudeConstraint.distanceFromStart,
                     constraint: uncategorizedAltitudeConstraint.constraint,
                 });
@@ -142,7 +142,7 @@ export class ConstraintReader {
 
     resetAltitudeConstraints() {
         this.climbAlitudeConstraints = [];
-        this.descentAlitudeConstraints = [];
+        this.descentAltitudeConstraints = [];
     }
 
     resetSpeedConstraints() {
