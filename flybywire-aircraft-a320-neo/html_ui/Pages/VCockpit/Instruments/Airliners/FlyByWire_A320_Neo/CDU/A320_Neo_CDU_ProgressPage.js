@@ -41,7 +41,7 @@ class CDUProgressPage {
 
                 if (vDev && isFinite(vDev)) {
                     const paddedVdev = (10 * Math.round(vDev / 10)).toFixed(0).padStart(4, "\xa0");
-                    const vDevSign = vDev > 0 ? "+" : "-";
+                    const vDevSign = vDev > 0 ? "+" : " ";
                     const extraSpace = paddedVdev.length > 4 ? "" : "\xa0";
 
                     vDevFormattedNumber = "{green}" + extraSpace + vDevSign + paddedVdev + "{end}";
