@@ -12,6 +12,7 @@ import { TaskCategory, TaskQueue } from '@fmgc/guidance/TaskQueue';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { LnavDriver } from './lnav/LnavDriver';
 import { FlightPlanManager, FlightPlans } from '../flightplanning/FlightPlanManager';
 import { GuidanceManager } from './GuidanceManager';
@@ -30,7 +31,7 @@ export interface Fmgc {
     getAccelerationAltitude(): Feet,
     getThrustReductionAltitude(): Feet,
     getCruiseAltitude(): Feet,
-    getFlightPhase(): FlightPhase,
+    getFlightPhase(): FmgcFlightPhase,
     getManagedCruiseSpeed(): Knots,
     getManagedCruiseSpeedMach(): Mach,
     getClimbSpeedLimit(): SpeedLimit,

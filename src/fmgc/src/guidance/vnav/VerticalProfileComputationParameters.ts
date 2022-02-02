@@ -2,6 +2,7 @@ import { Fmgc } from '@fmgc/guidance/GuidanceController';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { ArmedLateralMode, ArmedVerticalMode, LateralMode, VerticalMode } from '@shared/autopilot';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 export interface VerticalProfileComputationParameters {
     presentPosition: LatLongAlt,
@@ -31,7 +32,7 @@ export interface VerticalProfileComputationParameters {
     cruiseAltitude: Feet,
     climbSpeedLimit: SpeedLimit,
     descentSpeedLimit: SpeedLimit,
-    flightPhase: FlightPhase,
+    flightPhase: FmgcFlightPhase,
     preselectedClbSpeed: Knots,
     takeoffFlapsSetting?: FlapConf
 
@@ -72,7 +73,7 @@ export class VerticalProfileComputationParametersObserver {
             originAirfieldElevation: SimVar.GetSimVarValue('L:A32NX_DEPARTURE_ELEVATION', 'feet'),
             accelerationAltitude: this.fmgc.getAccelerationAltitude(),
             thrustReductionAltitude: this.fmgc.getThrustReductionAltitude(),
-            cruiseAltitude: this.fmgc.getCruiseAltitude(),
+            cruiseAltitude: Number.isFinite(this.fmgc.getCruiseAltitude()) ? this.fmgc.getCruiseAltitude() : this.parameters.cruiseAltitude,
             climbSpeedLimit: this.fmgc.getClimbSpeedLimit(),
             descentSpeedLimit: this.fmgc.getDescentSpeedLimit(),
             flightPhase: this.fmgc.getFlightPhase(),

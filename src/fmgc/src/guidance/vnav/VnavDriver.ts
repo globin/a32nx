@@ -20,6 +20,7 @@ import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions
 import { Constants } from '@shared/Constants';
 import { ClimbThrustClimbStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
@@ -161,7 +162,7 @@ export class VnavDriver implements GuidanceComponent {
             this.currentNavGeometryProfile.addPresentPositionCheckpoint(presentPosition, fuelOnBoard * Constants.TONS_TO_POUNDS);
         }
 
-        if (flightPhase < FlightPhase.FLIGHT_PHASE_CRUISE) {
+        if (flightPhase < FmgcFlightPhase.Cruise) {
             this.climbPathBuilder.computeClimbPath(this.currentNavGeometryProfile, climbStrategy, this.currentMcduSpeedProfile, cruiseAltitude);
         }
 
@@ -218,14 +219,14 @@ export class VnavDriver implements GuidanceComponent {
                 this.currentNdGeometryProfile.descentSpeedConstraints,
             );
 
-        if (flightPhase < FlightPhase.FLIGHT_PHASE_CRUISE) {
+        if (flightPhase < FmgcFlightPhase.Cruise) {
             this.climbPathBuilder.computeClimbPath(this.currentNdGeometryProfile,
                 climbStrategy, speedProfile, fcuAltitude);
         }
 
         // To please TypeScript, we explicitly check that currentNdGeometryProfile is a NavGeometryProfile even if this is guaranteed by the check before
         if (this.isInManagedNav() && this.currentNdGeometryProfile instanceof NavGeometryProfile && this.decelPathBuilder.canCompute(geometry, this.currentNavGeometryProfile.waypointCount)) {
-            if (flightPhase < FlightPhase.FLIGHT_PHASE_DESCENT) {
+            if (flightPhase < FmgcFlightPhase.Descent) {
                 this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(this.currentNdGeometryProfile, speedProfile, climbStrategy, stepDescentStrategy);
             }
         }

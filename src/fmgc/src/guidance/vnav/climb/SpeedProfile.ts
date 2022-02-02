@@ -1,11 +1,12 @@
 import { MaxSpeedConstraint } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 interface ClimbSpeedProfileParameters {
     fcuSpeed: Knots | Mach,
     managedClimbSpeed: Knots,
     climbSpeedLimit: SpeedLimit,
-    flightPhase: FlightPhase,
+    flightPhase: FmgcFlightPhase,
     preselectedClbSpeed: Knots,
 }
 
