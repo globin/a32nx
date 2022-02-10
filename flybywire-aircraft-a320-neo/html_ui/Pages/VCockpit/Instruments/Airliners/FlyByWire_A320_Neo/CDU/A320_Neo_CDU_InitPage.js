@@ -255,21 +255,6 @@ class CDUInitPage {
             console.error(e);
         }
     }
-    // Does not refresh page so that other things can be performed first as necessary
-    static updateTowIfNeeded(mcdu) {
-        if (isFinite(mcdu.taxiFuelWeight) && isFinite(mcdu.zeroFuelWeight) && isFinite(mcdu.blockFuel)) {
-            mcdu.takeOffWeight = mcdu.zeroFuelWeight + mcdu.blockFuel - mcdu.taxiFuelWeight;
-        }
-    }
-    static fuelPredConditionsMet(mcdu) {
-        return isFinite(mcdu.blockFuel) &&
-            isFinite(mcdu.zeroFuelWeightMassCenter) &&
-            isFinite(mcdu.zeroFuelWeight) &&
-            mcdu.cruiseFlightLevel &&
-            mcdu.flightPlanManager.getWaypointsCount() > 0 &&
-            mcdu._zeroFuelWeightZFWCGEntered &&
-            mcdu._blockFuelEntered;
-    }
     static trySetFuelPred(mcdu) {
         if (CDUInitPage.fuelPredConditionsMet(mcdu) && !mcdu._fuelPredDone) {
             setTimeout(() => {
@@ -382,11 +367,11 @@ class CDUInitPage {
         let towLwColor = "[color]white";
 
         let taxiFuelCell = "{small}0.4{end}";
-        if (isFinite(mcdu.taxiFuelWeight)) {
-            if (mcdu._taxiEntered) {
-                taxiFuelCell = (NXUnits.kgToUser(mcdu.taxiFuelWeight)).toFixed(1);
+        if (isFinite(mcdu.weightManager.taxiFuelWeight)) {
+            if (mcdu.weightManager.taxiEntered) {
+                taxiFuelCell = (NXUnits.kgToUser(mcdu.weightManager.taxiFuelWeight)).toFixed(1);
             } else {
-                taxiFuelCell = "{small}" + (NXUnits.kgToUser(mcdu.taxiFuelWeight)).toFixed(1) + "{end}";
+                taxiFuelCell = "{small}" + (NXUnits.kgToUser(mcdu.weightManager.taxiFuelWeight)).toFixed(1) + "{end}";
             }
         }
         mcdu.onLeftInput[0] = async (value, scratchpadCallback) => {
@@ -473,7 +458,7 @@ class CDUInitPage {
             fuelPlanTopTitle = "";
             fuelPlanBottomTitle = "";
 
-            mcdu.tryUpdateTOW();
+            mcdu.updateTowIfNeeded();
             if (isFinite(mcdu.takeOffWeight)) {
                 towCell = "{small}" + (NXUnits.kgToUser(mcdu.takeOffWeight)).toFixed(1);
                 towLwColor = "[color]green";
@@ -545,7 +530,7 @@ class CDUInitPage {
                 };
 
                 mcdu.tryUpdateRouteTrip();
-                if (isFinite(mcdu.getTotalTripFuelCons()) && isFinite(mcdu.getTotalTripTime())) {
+                if (isFinite(mcdu.getTotalTripFuelCons()) && isFinite(mcdu.weightManager.routeTripTime)) {
                     tripWeightCell = "{sp}{sp}{small}" + (NXUnits.kgToUser(mcdu.getTotalTripFuelCons())).toFixed(1);
                     tripTimeCell = FMCMainDisplay.minutesTohhmm(mcdu._routeTripTime);
                     tripColor = "[color]green";
