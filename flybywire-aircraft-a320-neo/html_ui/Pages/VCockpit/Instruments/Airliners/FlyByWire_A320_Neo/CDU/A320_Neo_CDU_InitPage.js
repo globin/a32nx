@@ -530,9 +530,9 @@ class CDUInitPage {
                 };
 
                 mcdu.tryUpdateRouteTrip();
-                if (isFinite(mcdu.getTotalTripFuelCons()) && isFinite(mcdu.weightManager.routeTripTime)) {
-                    tripWeightCell = "{sp}{sp}{small}" + (NXUnits.kgToUser(mcdu.getTotalTripFuelCons())).toFixed(1);
-                    tripTimeCell = FMCMainDisplay.minutesTohhmm(mcdu._routeTripTime);
+                if (isFinite(mcdu.weightManager.routeTripFuelWeight) && isFinite(mcdu.weightManager.routeTripTime)) {
+                    tripWeightCell = "{sp}{sp}{small}" + (NXUnits.kgToUser(mcdu.weightManager.routeTripFuelWeight)).toFixed(1);
+                    tripTimeCell = FMCMainDisplay.minutesTohhmm(mcdu.weightManager.routeTripTime);
                     tripColor = "[color]green";
                 }
 

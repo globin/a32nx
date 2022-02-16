@@ -1,6 +1,11 @@
+import { FlightPhaseManager } from '../flightphase/FlightPhaseManager';
 import { WeightManager } from './WeightManager';
 
-describe('SimVarReaderWriter', () => {
+const fphm = new FlightPhaseManager();
+const fplm = jest.fn();
+const wm = new WeightManager(fplm, fphm);
+
+describe('WeightManager', () => {
     test('reads values', async () => {
         const simVarValue = 1;
         await SimVar.SetSimVarValue(simVarName, 'number', simVarValue);

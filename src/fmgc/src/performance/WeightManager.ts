@@ -1,3 +1,4 @@
+import { FuelPrediction } from '@fmgc/performance/FuelPrediction';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPhaseManager, FlightPlanManager } from '..';
 import { PayloadManager } from './PayloadManager';
@@ -55,6 +56,9 @@ export class WeightManager {
 
     /** @var tonnes */
     #routeFinalFuelWeight: number | null = null;
+
+    /** @var tonnes */
+    routeFinalCoefficient: number | null = null;
 
     /** @var tonnes */
     #routeReservedWeight: number | null = null;
@@ -196,11 +200,11 @@ export class WeightManager {
         return time >= 0 && time <= 90;
     }
 
-    isRteRsvFuelInRange(fuel) {
+    isRouteRsvFuelInRange(fuel) {
         return fuel >= 0 && fuel <= 10.0;
     }
 
-    isRteRsvPercentInRange(value) {
+    isRouteRsvPercentInRange(value) {
         return value >= 0 && value <= 15.0;
     }
 
@@ -247,9 +251,9 @@ export class WeightManager {
         const isFlying = SimVar.GetSimVarValue('GROUND VELOCITY', 'knots') > 30;
 
         if (useFOB) {
-            return this.fob - this.getTotalTripFuelCons() - this.minDestFob - this.taxiFuelWeight - (isFlying ? 0 : this.getRouteReservedWeight());
+            return this.fob - this.routeTripFuelWeight - this.minDestFob - this.taxiFuelWeight - (isFlying ? 0 : this.routeReservedWeight);
         }
-        return this.blockFuel - this.getTotalTripFuelCons() - this.minDestFob - this.taxiFuelWeight - (isFlying ? 0 : this.getRouteReservedWeight());
+        return this.blockFuel - this.routeTripFuelWeight - this.minDestFob - this.taxiFuelWeight - (isFlying ? 0 : this.routeReservedWeight);
     }
 
     /**
@@ -261,7 +265,7 @@ export class WeightManager {
             return 0;
         }
         const tempWeight = this.grossWeight - this.minDestFob;
-        const tempFFCoefficient = A32NX_FuelPred.computeHoldingTrackFF(tempWeight, 180) / 30;
+        const tempFFCoefficient = FuelPrediction.computeHoldingTrackFF(tempWeight, 180) / 30;
         return (this.tryGetExtraFuel(useFOB) * 1000) / tempFFCoefficient;
     }
 
@@ -270,9 +274,9 @@ export class WeightManager {
     }
 
     get routeReservedWeight() {
-        if (!this.routeReservedEntered() && this.rteFinalCoeffecient !== 0) {
+        if (!this.routeReservedEntered() && this.routeFinalCoefficient !== 0) {
             const fivePercentWeight = this.#routeReservedPercent * this.routeTripFuelWeight / 100;
-            const fiveMinuteHoldingWeight = (5 * this.rteFinalCoeffecient) / 1000;
+            const fiveMinuteHoldingWeight = (5 * this.routeFinalCoefficient) / 1000;
 
             return fivePercentWeight > fiveMinuteHoldingWeight ? fivePercentWeight : fiveMinuteHoldingWeight;
         }
@@ -282,6 +286,13 @@ export class WeightManager {
         return this.#routeReservedPercent * this.routeTripFuelWeight / 100;
     }
 
+    get routeReservedPercent() {
+        if (Number.isFinite(this.#routeReservedWeight) && Number.isFinite(this.blockFuel) && this.#routeReservedWeight !== 0) {
+            return this.#routeReservedWeight / this.routeTripFuelWeight * 100;
+        }
+        return this.#routeReservedPercent;
+    }
+
     /**
      * Updates the Fuel weight cell to tons. Uses a place holder FL120 for 30 min
      */
@@ -289,8 +300,8 @@ export class WeightManager {
         if (this.routeFinalFuelTime <= 0) {
             this.routeFinalFuelTime = DEFAULT_ROUTE_FINAL_TIME;
         }
-        this.#routeFinalFuelWeight = A32NX_FuelPred.computeHoldingTrackFF(this.zeroFuelWeight, 120) / 1000;
-        this.rteFinalCoeffecient = A32NX_FuelPred.computeHoldingTrackFF(this.zeroFuelWeight, 120) / 30;
+        this.#routeFinalFuelWeight = FuelPrediction.computeHoldingTrackFF(this.zeroFuelWeight, 120) / 1000;
+        this.routeFinalCoefficient = FuelPrediction.computeHoldingTrackFF(this.zeroFuelWeight, 120) / 30;
     }
 
     /**
@@ -304,16 +315,16 @@ export class WeightManager {
             const placeholderFl = 120;
             let airDistance = 0;
             if (this._windDir === this._windDirections.TAILWIND) {
-                airDistance = A32NX_FuelPred.computeAirDistance(Math.round(this._DistanceToAlt), this.averageWind);
+                airDistance = FuelPrediction.computeAirDistance(Math.round(this._DistanceToAlt), this.averageWind);
             } else if (this._windDir === this._windDirections.HEADWIND) {
-                airDistance = A32NX_FuelPred.computeAirDistance(Math.round(this._DistanceToAlt), -this.averageWind);
+                airDistance = FuelPrediction.computeAirDistance(Math.round(this._DistanceToAlt), -this.averageWind);
             }
 
-            const deviation = (this.zeroFuelWeight + this.routeFinalFuelWeight - A32NX_FuelPred.refWeight)
-                * A32NX_FuelPred.computeNumbers(airDistance, placeholderFl, A32NX_FuelPred.computations.CORRECTIONS, true);
+            const deviation = (this.zeroFuelWeight + this.routeFinalFuelWeight - FuelPrediction.refWeight)
+                * FuelPrediction.computeNumbers(airDistance, placeholderFl, FuelPrediction.computations.CORRECTIONS, true);
             if ((airDistance > 20 && airDistance < 200) && (placeholderFl > 100 && placeholderFl < 290)) { // This will always be true until we can setup alternate routes
-                this.routeAltFuelWeight = (A32NX_FuelPred.computeNumbers(airDistance, placeholderFl, A32NX_FuelPred.computations.FUEL, true) + deviation) / 1000;
-                this.routeAltFuelTime = A32NX_FuelPred.computeNumbers(airDistance, placeholderFl, A32NX_FuelPred.computations.TIME, true);
+                this.routeAltFuelWeight = (FuelPrediction.computeNumbers(airDistance, placeholderFl, FuelPrediction.computations.FUEL, true) + deviation) / 1000;
+                this.routeAltFuelTime = FuelPrediction.computeNumbers(airDistance, placeholderFl, FuelPrediction.computations.TIME, true);
             }
         }
     }
@@ -327,9 +338,9 @@ export class WeightManager {
         let airDistance = 0;
         const groundDistance = dynamic ? this.flightPlanManager.getDistanceToDestination(0) : this.flightPlanManager.getDestination().cumulativeDistanceInFP;
         if (this._windDir === this._windDirections.TAILWIND) {
-            airDistance = A32NX_FuelPred.computeAirDistance(groundDistance, this.averageWind);
+            airDistance = FuelPrediction.computeAirDistance(groundDistance, this.averageWind);
         } else if (this._windDir === this._windDirections.HEADWIND) {
-            airDistance = A32NX_FuelPred.computeAirDistance(groundDistance, -this.averageWind);
+            airDistance = FuelPrediction.computeAirDistance(groundDistance, -this.averageWind);
         }
 
         let altToUse = this.cruiseFlightLevel;
@@ -341,17 +352,17 @@ export class WeightManager {
         if ((airDistance >= 20 && airDistance <= 3100) && (altToUse >= 100 && altToUse <= 390)) {
             const deviation = (
                 this.zeroFuelWeight + this.routeFinalFuelWeight
-                + this.routeAltFuelWeight - A32NX_FuelPred.refWeight
-            ) * A32NX_FuelPred.computeNumbers(airDistance, altToUse, A32NX_FuelPred.computations.CORRECTIONS, false);
+                + this.routeAltFuelWeight - FuelPrediction.refWeight
+            ) * FuelPrediction.computeNumbers(airDistance, altToUse, FuelPrediction.computations.CORRECTIONS, false);
 
-            this.routeTripFuelWeight = (A32NX_FuelPred.computeNumbers(airDistance, altToUse, A32NX_FuelPred.computations.FUEL, false) + deviation) / 1000;
-            this.routeTripTime = A32NX_FuelPred.computeNumbers(airDistance, altToUse, A32NX_FuelPred.computations.TIME, false);
+            this.routeTripFuelWeight = (FuelPrediction.computeNumbers(airDistance, altToUse, FuelPrediction.computations.FUEL, false) + deviation) / 1000;
+            this.routeTripTime = FuelPrediction.computeNumbers(airDistance, altToUse, FuelPrediction.computations.TIME, false);
         }
     }
 
     get routeFinalFuelWeight() {
         if (Number.isFinite(this.#routeFinalFuelWeight)) {
-            this.#routeFinalFuelWeight = (this.routeFinalFuelTime * this.rteFinalCoeffecient) / 1000;
+            this.#routeFinalFuelWeight = (this.routeFinalFuelTime * this.routeFinalCoefficient) / 1000;
         }
 
         return this.#routeFinalFuelWeight;
@@ -374,11 +385,11 @@ export class WeightManager {
         this.tryUpdateRouteTrip();
 
         this.routeFinalFuelTime = tempRouteFinalFuelTime;
-        this.#routeFinalFuelWeight = (this.routeFinalFuelTime * this.rteFinalCoeffecient) / 1000;
+        this.#routeFinalFuelWeight = (this.routeFinalFuelTime * this.routeFinalCoefficient) / 1000;
 
         this.tryUpdateMinDestFob();
 
-        this.blockFuel = this.getTotalTripFuelCons() + this.minDestFob + this.taxiFuelWeight + this.getRouteReservedWeight();
+        this.blockFuel = this.routeTripFuelWeight + this.minDestFob + this.taxiFuelWeight + this.routeReservedWeight;
         this.fuelPlanningPhase = this.fuelPlanningPhases.IN_PROGRESS;
         return true;
     }
@@ -391,13 +402,6 @@ export class WeightManager {
             && this.flightPlanManager.getWaypointsCount() > 0
             && this.zeroFuelWeightZFWCGEntered
             && this._blockFuelEntered;
-    }
-
-    get routeReservedPercent() {
-        if (Number.isFinite(this.#routeReservedWeight) && Number.isFinite(this.blockFuel) && this.#routeReservedWeight !== 0) {
-            return this.routeReservedWeight / this.routeTripFuelWeight * 100;
-        }
-        return this.#routeReservedPercent;
     }
 
     /**
